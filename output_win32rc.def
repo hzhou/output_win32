@@ -29,6 +29,8 @@ page: output_win32rc, output_main
             my $name=$1
             $call write_res_dialog
             return 1
+        $elif $l!~/^NOOP/
+            $call warn, unparsed: $l
     subcode: dumpout
         my $pagename=$page->{_pagename}
         my $outdir=$page->{outdir}
