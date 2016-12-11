@@ -1,0 +1,109 @@
+# --------------------------------------
+#  register_wndclass, create_window, wndproc
+# ---- Register Window Class ----
+subcode: register_wndclass(name, proc)
+    $local WNDCLASSEX wc
+    wc.cbSize = sizeof(WNDCLASSEX);
+    wc.hInstance = cur_instance
+    wc.cbClsExtra = 0;
+
+    $(if:wc_style!=1)
+        wc.style = 0
+
+    $(if:wc_icon!=1)
+        wc.hIcon = NULL
+        wc.hIconSm = NULL
+
+    $(if:wc_cursor!=1)
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+
+    $(if:wc_background!=1)
+        wc.hbrBackground = NULL
+    $(if:wc_menu!=1)
+        wc.lpszMenuName = NULL
+
+    wc.lpszClassName = $(name)
+
+    $(if:proc=DIALOG)
+        wc.lpfnWndProc = DefDlgProc
+        wc.cbWndExtra = DLGWINDOWEXTRA
+    $(elif:proc:8=WndProc_)
+        $(block:global_init)
+            $wndproc $(proc)
+        wc.lpfnWndProc = $(proc)
+        wc.cbWndExtra = 0
+
+    RegisterClassEx(&wc);
+
+subcode: wc_cursor(p)
+    $local WNDCLASSEX wc
+    $(if:p:4=IDC_)
+        wc.hCursor = LoadCursor(NULL, $(p))
+        $(export:wc_cursor=1)
+
+subcode: wc_style(p)
+    $(if:wc_style!=1)
+        wc.style=$(p)
+    $(else)
+        wc.style |= $(p)
+    $(export:wc_style=1)
+
+subcode: wc_icon(p)
+    $(if:p:4=IDI_)
+        wc.hIcon = LoadImage(cur_instance, MAKEINTRESOURCE($(p)), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR|LR_SHARED);
+        wc.hIconSm = LoadImage(cur_instance, MAKEINTRESOURCE($(p)), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR|LR_SHARED);
+        $(export:wc_icon=1)
+
+subcode: wc_menu(p)
+    wc.lpszMenuName=(LPCTSTR)$(p)
+    $(export:wc_menu=1)
+
+subcode: wc_background(p)
+    wc.hbrBackground=(HBRUSH)$(p)
+    $(export:wc_background=1)
+
+# ---- Create Window ----
+subcode: create_window(hwnd, name)
+    $(if:!cw_style_ex)
+        $(set:cw_style_ex=0)
+    $(if:!cw_style)
+        $(set:cw_style=WS_OVERLAPPEDWINDOW)
+    $(if:!cw_x)
+        $(set:cw_x=CW_USEDEFAULT)
+    $(if:!cw_y)
+        $(set:cw_y=CW_USEDEFAULT)
+    $(if:!cw_w)
+        $(set:cw_w=CW_USEDEFAULT)
+    $(if:!cw_h)
+        $(set:cw_h=CW_USEDEFAULT)
+
+    $(hwnd)=CreateWindowEx($(cw_style_ex), $(name), $(name), $(cw_style), $(cw_x), $(cw_y), $(cw_w), $(cw_h), NULL, NULL, cur_instance, NULL)
+    
+subcode: cw_style_ex(p)
+    $(if:!cw_style_ex)
+        $(export:cw_style_ex=$(p))
+    $(else)
+        $(export:cw_style_ex=$(cw_style_ex)|$(p))
+
+subcode: cw_style(p)
+    $(if:!cw_style)
+        $(export:cw_style=$(p))
+    $(else)
+        $(export:cw_style=$(cw_style)|$(p))
+
+subcode: cw_size(x, y, w, h)
+    $(export:cw_x=$(x))
+    $(export:cw_y=$(y))
+    $(export:cw_w=$(w))
+    $(export:cw_h=$(h))
+
+subcode: cw_dim(x, v)
+    $(export:cw_$(x)=$(v))
+
+#
+# -- messages --
+subcode: msg_destroy
+    case WM_DESTROY:
+        PostQuitMessage(0)
+        return 1
+

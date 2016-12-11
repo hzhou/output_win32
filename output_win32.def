@@ -1,0 +1,121 @@
+include: output.def
+include: ext.def
+
+page: output_win32, inherit, c
+    type: pm
+    output_dir: lib/MyDef
+    ext: c
+    init_mode: sub
+    package: MyDef::output_win32
+
+subcode:: on_init
+    $(super:parsecode)("\$global HINSTANCE cur_instance")
+    $(super:parsecode)("\$global HWND hwnd_main")
+
+subcode:: on_dumpout
+    my $extern
+    # ----  Main Function -------------------
+    my $winmain=$$(super:functions){"WinMain"};
+    $if $winmain
+        $$(super:has_main)=1
+        $winmain->{skip_declare}=1;
+        $winmain->{ret_type}="int APIENTRY";
+        $winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
+        push @{$winmain->{init}}, "cur_instance=hInst;";
+        push @{$winmain->{init}}, "DUMP_STUB main_init";
+        push @{$winmain->{finish}}, "DUMP_STUB main_exit";
+        push @{$winmain->{finish}}, "return 0;";
+
+    $if !$winmain
+        $$(super:global_hash)->{cur_instance}->{attr}="extern"
+        $$(super:global_hash)->{hwnd_main}->{attr}="extern"
+
+    # ---- Windows Include and Library ----
+    push @$f, "#define _CRT_SECURE_NO_WARNINGS\n"
+    push @$f, "#define WIN32_LEAN_AND_MEAN\n"
+    push @$f, "#include <windows.h>\n";
+    $foreach $i in keys %$(super:objects)
+        $if $i=~/^lib(.*)/
+            $if $1 ne "m"
+                push @$f, "#pragma comment(lib, \"$1\")\n"
+                $$(super:objects){$i}=undef
+
+#---------------------------------------- 
+# ---- WNDPROC ------
+subcode:: on_parsecode
+    $if $l=~/^\$wndproc\s+(\w+)/
+        my $param=$1
+        $call parse_wndproc
+        return
+
+    #  $(block:global_init)
+    #      $wndproc WndProc_main
+    subcode: parse_wndproc
+        $(set:C=MyDef::output_c::)
+        $if $param=~/(WndProc|DlgProc)_(\w+)/
+            my ($type, $name)=($1, $2)
+            my $funcname="$type\_$name"
+            my $paramline ="HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam"
+            $if !$$(super:lambda_functions){$funcname}
+                my ($func, $block)=$(super:function_block)($funcname, $paramline)
+                $(super:func_push)($func)
+                $func->{ret_type}="LRESULT CALLBACK";
+
+                my $outblock=[]
+                $$(super:lambda_functions){$funcname}=$outblock
+                push @$(super:list_function_list), $funcname
+                $$(super:list_function_hash){$funcname}=1
+                &call replace_output, $outblock
+                    $foreach $l in @$block
+                        $if $l eq "BLOCK"
+                            window_proc_core($name, $type)
+                        $else
+                            push @$out, $l
+
+                $(super:func_pop)()
+
+# calls various message subs 
+fncode: window_proc_core($name, $type)
+    $(set:C=MyDef::output_c::)
+    $(set:super=MyDef::output_c::$1)
+    my $out=$$(super:out)
+    my $codes=$MyDef::def->{codes}
+    # ---- process window msg ---------------
+    MyDef::compileutil::call_sub("\@pre_WndProc_$name")
+    push @$out, "switch(msg){";
+    &call push_indent_block
+        my %msg_hash;
+        $foreach $k in sort(keys(%$codes))
+            $if $k=~/$name\_on\_(WM_\w+)/
+                my $msg=$1
+                $call window_proc_on_msg
+        $if !$msg_hash{"WM_DESTROY"} and $name eq "main"
+            MyDef::compileutil::call_sub("msg_destroy")
+            # $call msg_destroy
+
+    push @$out, "}";
+    $if $type eq "WndProc"
+        push @$out, "return DefWindowProc(hwnd, msg, wparam, lparam);"
+    $elif $type eq "DlgProc"
+        push @$out, "return FALSE;"
+
+    # ------------------------
+    subcode: window_proc_on_msg
+        $msg_hash{$msg}=1
+        $if $msg eq "WM_ALLKEY"
+            push @$out, "case WM_KEYDOWN:"
+            push @$out, "case WM_KEYUP:"
+            push @$out, "case WM_SYSKEYDOWN:"
+            push @$out, "case WM_SYSKEYUP:"
+        $elif $msg eq "WM_ALLCOMMAND"
+            push @$out, "case WM_COMMAND:"
+            push @$out, "case WM_SYSCOMMAND:"
+        $else
+            push @$out, "case $msg:"
+
+        &call push_indent_block
+            # push @$out, "printf(\"$name\_on_$msg\\n\");"
+            MyDef::compileutil::call_sub("\@$name\_on_$msg")
+            push @$out, "break;"
+
+
