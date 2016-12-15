@@ -1,40 +1,5 @@
-include: c/darray.def
-
-# ---- SOCKET Select ---------------------------------------
-#   maintains a table of socket
 subcode:: _autoload
     $include winsock2
-    $fntype void (*select_fn)(void * data, int tn_event, int tn_err)
-    $struct(socket_node) SOCKET socket, select_fn, void * data
-    $call global_darray, struct socket_node, select_list
-
-    $define(WM_NETEVENT) WM_APP+5
-
-subcode: add_select_fn(s, fn, data)
-    $call darray_check, select_list
-    $for i=0:$(len)
-        $if select_list[i].socket==0
-            break
-    select_list[i].socket=$(s)
-    select_list[i].select_fn=$(fn)
-    select_list[i].data=$(data)
-    $if i==$(len)
-        $(len)++
-
-subcode: del_select_fn(s)
-    $call use_darray, select_list
-    $for i=0:$(len)
-        $if select_list[i].socket==$(s)
-            select_list[i].socket=0
-            break
-
-subcode: find_select_fn(s)
-    tn_ret=0
-    $call use_darray, select_list
-    $for i=0:$(len)
-        $if select_list[i].socket==$(s)
-            tn_ret=1
-            break
 
 # ----
 subcode: winsock_init
@@ -44,7 +9,7 @@ subcode: winsock_init
         $local WSADATA wsadata
         tn_ret=WSAStartup(MAKEWORD(2,2), &wsadata)
         $if tn_ret!=0
-            print WSAStartup failed: $tn_ret
+            $print WSAStartup failed: $tn_ret
             exit(0)
         b_winsock_initialized=1
 
@@ -53,6 +18,11 @@ subcode: winsock_cleanup
 
 # -------------------------------------------
 subcode: socket_getaddr(host, port)
+    # both host and port are strings
+    $(if:number:host)
+        $(set:host="$(host)")
+    $(if:number:port)
+        $(set:port="$(port)")
     $local struct addrinfo addrhint
     ZeroMemory(&addrhint, sizeof(addrhint))
     addrhint.ai_family=AF_INET
@@ -61,9 +31,7 @@ subcode: socket_getaddr(host, port)
     $(if:flag_listen=1)
         addrhint.ai_flags=AI_PASSIVE
     $local struct addrinfo * p_addr = NULL
-    $call tempstr_init
-    $call tempstr_add_int, $(port)
-    tn_ret=getaddrinfo($(host), $(tempstr), &addrhint, &p_addr)
+    tn_ret=getaddrinfo($(host), $(port), &addrhint, &p_addr)
     $call assert, tn_ret==0
 
 subcode: socket_listen_new
@@ -123,28 +91,4 @@ subcode: socket_connect(host, port)
     $else
         tn_ret=1
 
-# ----
-subcode: socket_select(socket, data)
-    $(allow_recurse:10)
-    $(autoinc:socket_select_index)
-    $(set:funcname=socket_select_$(socket_select_index))
-    $call add_select_fn, $(socket), $(funcname), $(data)
-    tn_msg=WM_NETEVENT;
-    tn_events=(FD_CONNECT | FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT);
-    tn_ret=WSAAsyncSelect($(socket), hwnd_main, tn_msg, tn_events)
-    $call assert, tn_ret!=SOCKET_ERROR
-    $(block:global_init)
-        $function $(funcname)(void * data, tn_event, tn_err)
-            BLOCK
-
-subcode: clear_select(socket)
-    $call del_select_fn, $(socket)
-    tn_ret=WSAAsyncSelect($(socket), hwnd_main, 0, 0)
-    $call assert, tn_ret!=SOCKET_ERROR
-
-# ----
-subcode:: main_on_WM_NETEVENT
-    $call find_select_fn, wparam
-    $if tn_ret
-        select_list[i].select_fn(select_list[i].data, WSAGETSELECTEVENT(lparam), WSAGETSELECTERROR(lparam))
-
+#---------------------------------------- 

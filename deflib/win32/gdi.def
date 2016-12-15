@@ -1,14 +1,15 @@
+#---------------------------------------- 
+subcode: get_hdc(hwnd)
+    hdc = GetDC($(hwnd))
+    BLOCK
+    ReleaseDC($(hwnd), hdc)
 
-subcode: quick_gdi(name)
-    BLOCK RELEASE
-    $local HGDIOBJ t_old_$(name)
-    t_old_$(name)=SelectObject(hdc, t_new_$(name))
-    $(block:_post)
-        SelectObject(hdc, t_old_$(name))
-        DeleteObject(t_new_$(name))
-
-subcode: gdi_exit(var)
-    DeleteObject($(var))
+#---------------------------------------- 
+subcode: quick_gdi(obj)
+    $temp HGDIOBJ old
+    $(old)=SelectObject(hdc, $(obj))
+    BLOCK
+    SelectObject(hdc, $(old))
 
 #---------------------------------------- 
 # -- PEN ---------------------
@@ -24,9 +25,10 @@ subcode: create_pen(var, @plist)
     t_new_pen=CreatePen($(ps), $(pw), $(color))
 
 subcode: quick_pen(@plist)
-    BLOCK RELEASE
     $call create_pen, t_new_pen, $(plist)
-    $call quick_gdi, pen
+    &call quick_gdi, t_new_pen
+        BLOCK
+    DeleteObject(t_new_pen)
 
 # -- Brush -------------------------
 subcode: create_brush(var, @plist)
@@ -36,24 +38,20 @@ subcode: create_brush(var, @plist)
         $(export:color=$(p))
     $(var)=CreateSolidBrush($(color))
 
-subcode: local_brush(var, @plist)
-    BLOCK RELEASE
-    $my HBRUSH $(var)
-    $call create_brush, $(var), $(plist)
-    $set_var_attr $(var), exit=gdi_exit
-
 subcode: quick_brush(@plist)
-    BLOCK RELEASE
     $call create_brush, t_new_brush, $(plist)
-    $call quick_gdi, brush
+    &call quick_gdi, t_new_brush
+        BLOCK
+    DeleteObject(t_new_brush)
 
 # -- Font -----------------------------------
 subcode: create_font(var, name, size)
     $(var) = CreateFont ($(size), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, $(name))
 
 subcode: quick_font(fontname, size)
-    BLOCK RELEASE
     $my HFONT t_new_font
     $call create_font, t_new_font, $(fontname), $(size)
-    $call quick_gdi, font
+    &call quick_gdi, t_new_font
+        BLOCK
+    DeleteObject(t_new_font)
 
