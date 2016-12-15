@@ -1,0 +1,67 @@
+include: c/darray.def
+
+# ---- SOCKET Select ---------------------------------------
+#   maintains a table of socket
+subcode:: _autoload
+    $fntype void (*select_fn)(void * data, int tn_event, int tn_err)
+    $struct(socket_node) SOCKET socket, select_fn, void * data
+    $global darray select_list: struct socket_node
+
+    $define(WM_NETEVENT) WM_APP+5
+
+subcode: iter_sockets
+    $for i=0:select_list_len
+        $(set:socket=select_list[i].socket)
+        $(set:fn=select_list[i].select_fn)
+        $(set:data=select_list[i].data)
+        BLOCK
+
+
+#---------------------------------------- 
+subcode: socket_select(socket, data)
+    $(allow_recurse:10)
+    $(autoinc:socket_select_index)
+    $(set:funcname=socket_select_$(socket_select_index))
+    $call add_select_fn, $(socket), $(funcname), $(data)
+    tn_msg=WM_NETEVENT;
+    tn_events=(FD_CONNECT | FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT);
+    tn_ret=WSAAsyncSelect($(socket), hwnd_main, tn_msg, tn_events)
+    $call assert, tn_ret!=SOCKET_ERROR
+    $(block:global_init)
+        $function $(funcname)(void * data, tn_event, tn_err)
+            BLOCK
+
+subcode:: main_on_WM_NETEVENT
+    &call find_socket, wparam
+        $(fn)($(data), WSAGETSELECTEVENT(lparam), WSAGETSELECTERROR(lparam))
+
+    subcode: find_socket(s)
+        &call iter_sockets
+            $if $(socket)==$(s)
+                BLOCK
+                break
+
+subcode: clear_select(socket)
+    $call del_select_fn, $(socket)
+    tn_ret=WSAAsyncSelect($(socket), hwnd_main, 0, 0)
+    $call assert, tn_ret!=SOCKET_ERROR
+
+#---------------------------------------- 
+subcode: add_select_fn(s, fn, data)
+    $call darray_check, select_list
+    &call iter_sockets
+        $if $(socket)==0
+            break
+    select_list[i].socket=$(s)
+    select_list[i].select_fn=$(fn)
+    select_list[i].data=$(data)
+    $(set:len=select_list_len)
+    $if i==$(len)
+        $(len)++
+
+subcode: del_select_fn(s)
+    &call iter_sockets
+        $if $(socket)==$(s)
+            $(socket)=0
+            break
+
