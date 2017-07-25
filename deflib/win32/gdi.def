@@ -11,6 +11,11 @@ subcode: quick_gdi(obj)
     BLOCK
     SelectObject(hdc, $(old))
 
+subcode: with_gdi(objs)
+    $(for:$(objs))
+        SelectObject(hdc, $1)
+    BLOCK
+
 #---------------------------------------- 
 # -- PEN ---------------------
 subcode: create_pen(var, @plist)

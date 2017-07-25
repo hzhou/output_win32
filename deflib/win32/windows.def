@@ -19,7 +19,7 @@ subcode: register_wndclass(name, proc)
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 
     $(if:!wc_background)
-        wc.hbrBackground = (HBRUSH)(COLOR_BACKGROUND+1) # black
+        wc.hbrBackground = NULL
     $(if:!wc_menu)
         wc.lpszMenuName = NULL
 
