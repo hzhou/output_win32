@@ -1,11 +1,14 @@
 # win32 is c, all c extension works here
 
 page: test, basic_frame
+    module: win32
+
     $global hwnd_main
-    $call wc_background, COLOR_BACKGROUND
     #-- register_wndclass will also create WndProc and hook up all the message handlers
-    $call register_wndclass, "test", WndProc_main
-    $call create_window, hwnd_main, "test"
+    &call register_wndclass, "test", WndProc_main
+        $call background, COLOR_BACKGROUND
+    &call create_window, hwnd_main, "test"
+        NOOP
     $call win_show, hwnd_main
     $call win_loop
 

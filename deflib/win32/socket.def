@@ -1,5 +1,6 @@
 subcode:: _autoload
     $include winsock2
+    $uselib ws2_32
 
 # ----
 subcode: winsock_init

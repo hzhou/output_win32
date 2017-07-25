@@ -111,6 +111,7 @@ subcode: fillrect(left, top, right, bot)
     FillRect(hdc, &t_rect, (HBRUSH)(COLOR_WINDOW+1))
 ###############################################################
 subcode: msgbox(@msg)
+    $include stdio
     $local ts_msg_buffer[1000]
     sprintf(ts_msg_buffer, $(msg))
     MessageBox(hwnd_main, ts_msg_buffer, "Message Box", MB_OK)

@@ -29,8 +29,10 @@ subcode: register_wndclass(name, proc)
         wc.lpfnWndProc = DefDlgProc
         wc.cbWndExtra = DLGWINDOWEXTRA
     $(elif:proc:8=WndProc_)
-        $(block:global_init)
+        $function $(proc)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+            $return_type LRESULT CALLBACK
             $wndproc $(proc)
+
         wc.lpfnWndProc = $(proc)
         wc.cbWndExtra = 0
 

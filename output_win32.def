@@ -1,5 +1,4 @@
 include: output.def
-include: ext.def
 
 page: output_win32, inherit, c
     type: pm
@@ -43,36 +42,10 @@ subcode:: on_dumpout
 #---------------------------------------- 
 # ---- WNDPROC ------
 subcode:: on_parsecode
-    $if $l=~/^\$wndproc\s+(\w+)/
-        my $param=$1
-        $call parse_wndproc
+    $if $l=~/^\$wndproc\s+(WndProc|DlgProc)_(\w+)/
+        my ($type, $name) = ($1, $2)
+        window_proc_core($name, $type)
         return
-
-    #  $(block:global_init)
-    #      $wndproc WndProc_main
-    subcode: parse_wndproc
-        $(set:C=MyDef::output_c::)
-        $if $param=~/(WndProc|DlgProc)_(\w+)/
-            my ($type, $name)=($1, $2)
-            my $funcname="$type\_$name"
-            my $paramline ="HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam"
-            $if !$$(super:lambda_functions){$funcname}
-                my ($func, $block)=$(super:function_block)($funcname, $paramline)
-                $(super:func_push)($func)
-                $func->{ret_type}="LRESULT CALLBACK";
-
-                my $outblock=[]
-                $$(super:lambda_functions){$funcname}=$outblock
-                push @$(super:list_function_list), $funcname
-                $$(super:list_function_hash){$funcname}=1
-                &call replace_output, $outblock
-                    $foreach $l in @$block
-                        $if $l eq "BLOCK"
-                            window_proc_core($name, $type)
-                        $else
-                            push @$out, $l
-
-                $(super:func_pop)()
 
 # calls various message subs 
 fncode: window_proc_core($name, $type)
