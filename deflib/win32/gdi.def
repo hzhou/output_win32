@@ -1,3 +1,52 @@
+include: win32/std.def
+
+subcode: _autoload
+    $register_prefix(hdc) HDC
+    $register_prefix(hfont) HFONT
+    $register_prefix(hbrush) HBRUSH
+    $register_prefix(hpen) HPEN
+
+    $register_name(hobj) HGDIOBJ
+    $register_prefix(rect) RECT
+
+    $register_prefix(bmph) BITMAPINFOHEADER
+    $register_prefix(bmp) DWORD *
+
+#---------------------------------------- 
+subcode: on_paint
+    $uselib gdi32
+    $local PAINTSTRUCT ps
+    $local HDC hdc
+    hdc = BeginPaint(hwnd, &ps)
+    BLOCK
+    EndPaint(hwnd, &ps)
+
+    subcode: background(color)
+        $if ps.fErase
+            &call quick_brush, $(color)
+                FillRect(hdc, &ps.rcPaint, t_brush)
+            
+subcode: draw_hello
+    $local rect_client
+    $call fill_hwnd, hwnd, 0xa0a0a0
+    &call quick_font, L"Times New Roman", 24
+        SetTextAlign(hdc, TA_CENTER|TA_BASELINE)
+        TextOut(hdc, rect_client.right/2, rect_client.bottom/2, L"Hello World", 11)
+
+subcode: fill_hwnd(hwnd, color)
+    $local rect_client
+    GetClientRect($(hwnd), &rect_client)
+    &call quick_brush, $(color)
+        FillRect(hdc, &rect_client, t_brush)
+
+subcode: fillrect(left, top, right, bot)
+    $local t_rect
+    t_rect.left=$(left)
+    t_rect.top=$(top)
+    t_rect.right=$(right)
+    t_rect.bottom=$(bot)
+    FillRect(hdc, &t_rect, (HBRUSH)(COLOR_WINDOW+1))
+
 #---------------------------------------- 
 subcode: get_hdc(hwnd)
     hdc = GetDC($(hwnd))
@@ -19,7 +68,7 @@ subcode: with_gdi(objs)
 #---------------------------------------- 
 # -- PEN ---------------------
 subcode: create_pen(var, @plist)
-    $local HPEN t_new_pen
+    $local HPEN t_pen
     $(mset:ps=PS_SOLID,pw=0,color=0)
     $(ifeach:p:3=PS_)
         $(export:ps=$(p))
@@ -27,36 +76,36 @@ subcode: create_pen(var, @plist)
         $(export:pw=$(p))
     $(ifeach:p:6=color_)
         $(export:color=$(p))
-    t_new_pen=CreatePen($(ps), $(pw), $(color))
+    t_pen=CreatePen($(ps), $(pw), $(color))
 
 subcode: quick_pen(@plist)
-    $call create_pen, t_new_pen, $(plist)
-    &call quick_gdi, t_new_pen
+    $call create_pen, t_pen, $(plist)
+    &call quick_gdi, t_pen
         BLOCK
-    DeleteObject(t_new_pen)
+    DeleteObject(t_pen)
 
 # -- Brush -------------------------
 subcode: create_brush(var, @plist)
-    # $local HBRUSH $(var)
+    $local HBRUSH $(var)
     $(set:color=0)
     $(ifeach:p:6=color_ or p:2=0x)
         $(export:color=$(p))
     $(var)=CreateSolidBrush($(color))
 
 subcode: quick_brush(@plist)
-    $call create_brush, t_new_brush, $(plist)
-    &call quick_gdi, t_new_brush
+    $call create_brush, t_brush, $(plist)
+    &call quick_gdi, t_brush
         BLOCK
-    DeleteObject(t_new_brush)
+    DeleteObject(t_brush)
 
 # -- Font -----------------------------------
 subcode: create_font(var, name, size)
+    $local HFONT $(var)
     $(var) = CreateFont ($(size), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, $(name))
 
 subcode: quick_font(fontname, size)
-    $my HFONT t_new_font
-    $call create_font, t_new_font, $(fontname), $(size)
-    &call quick_gdi, t_new_font
+    $call create_font, t_font, $(fontname), $(size)
+    &call quick_gdi, t_font
         BLOCK
-    DeleteObject(t_new_font)
+    DeleteObject(t_font)
 

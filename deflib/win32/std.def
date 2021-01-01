@@ -1,0 +1,11 @@
+subcode: _autoload
+    $uselib user32
+    $include windows
+
+    $register_prefix(ui) UINT
+    $register_prefix(lpstr) LPSTR
+
+    $register_prefix(hwnd) HWND
+    $register_prefix(hmenu) HMENU
+    $define(snprintf) sprintf_s
+
