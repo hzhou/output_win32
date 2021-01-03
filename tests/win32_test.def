@@ -11,7 +11,7 @@ page: test, basic_frame
     $call win_main, test
     $call win_loop
 
-# -------------------------------------------------
+#----------------------------------------
 #-- pay attention to the naming convention
 subcode: main_on_WM_PAINT
     &call on_paint
@@ -22,13 +22,10 @@ subcode: main_on_WM_PAINT
             $call get_rect_client, hwnd
             $call center_text, rect_client, "Hello World!"
 
-subcode: _autoload
-    $global g_font_initialized: bool
-    $define(FONT_A) fonts[0]
-
 #---------------------------------------- 
 subcode: init_font
     $global HFONT fonts[20]
+    $define(FONT_A) fonts[0]
 
     $call create_font, FONT_A, "Times New Roman", 100
 
