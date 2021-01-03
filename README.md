@@ -1,7 +1,7 @@
 
 * `tests/win32_test.def`:
 
-```
+```sh
 # win32 is c, all c extension works here
 
 page: test, basic_frame
