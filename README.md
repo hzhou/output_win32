@@ -44,3 +44,5 @@ subcode: init_configs
 ```
 
 On Linux (cross-compiling), it will need some setup. On Cygwin, it works by pressing `F5` (`mydef_run win32_test.def`) and a window should show up.
+
+![Win32 Hello World](tests/hello.png)
