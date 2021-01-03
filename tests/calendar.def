@@ -1,0 +1,229 @@
+page: calendar, basic_frame
+    module: win32
+    use_bool: 1
+    CFLAGS: -Wl,--subsystem,windows
+
+    $call @init_configs
+    $call @init_time
+    $call @setup_year
+    $(for:x,y,w,h)
+        $(set:cw_$1=g_main_$1)
+    $call win_main, test
+    $call @update_title
+    $call win_loop
+
+    subcode: update_title
+        $include stdio
+        $local s_title[100]
+        sprintf(s_title, "Calendar for year %d", g_year)
+        SetWindowTextA(hwnd_main, s_title)
+
+#----------------------------------------
+#-- pay attention to the naming convention
+subcode: main_on_WM_SIZING
+    return TRUE
+
+subcode: main_on_WM_SIZE
+    InvalidateRect(hwnd, NULL, TRUE)
+    return TRUE
+
+subcode: main_on_WM_PAINT
+    &call on_paint
+        draw_calendar(hwnd, hdc)
+    return TRUE
+
+#---------------------------------------- 
+fncode: draw_calendar(hwnd, hdc)
+    $call get_rect_client, hwnd
+    $(set:W=rect_client.right)
+    $(set:H=rect_client.bottom)
+
+    $call @init_calendar
+    $local COLORREF color_bg = 0xf8f8f8
+    $call background, color_bg
+    $call draw_months
+    DUMP_STUB paint_clean_up
+
+    subcode: init_calendar
+        $call set_aspect
+        $call set_month_size
+        $call set_font
+
+        subcode: set_month_size
+            $local month_width, month_height: int
+            month_width = ( $(W) - 50 ) / num_col
+            $if month_width < 200
+                month_width = 200
+            month_height = month_width * 6 / 7 # 7 row 7 col
+
+            $local margin_x, margin_y, month_gap: int
+            month_gap = month_width * 0.1
+            month_width -= month_gap
+            margin_x = ($(W) - month_width * num_col - month_gap * (num_col-1) ) / 2
+            $if margin_x < 20 # due to minimum size
+                margin_x = 20 
+            margin_y = margin_x
+
+            $local cell_margin, cell_width, cell_height: int
+            cell_margin = month_width / 7 / 5
+            cell_width = (month_width - cell_margin * 2)/ 7
+            cell_height = cell_width
+
+        subcode: set_font
+            $local hfont_title, hfont_month, hfont_day, hfont_num
+            $call create_font, hfont_title, "Arial", cell_height * 2.0
+            $call create_font, hfont_month, "Arial", cell_height * 1.0
+            $call create_font, hfont_num, "Arial", cell_height * 0.6
+            hfont_day = hfont_num
+
+            $(block:paint_clean_up)
+                $(for:hfont_month,hfont_num, hfont_title)
+                    DeleteObject($1)
+
+        subcode: set_aspect
+            $local num_col, num_row: int
+            f_aspect = (float) $(W) / $(H)
+            $if f_aspect < 1.0/12
+                num_col = 1
+                num_row = 12
+            $call case_aspect, 2, 3
+            $call case_aspect, 3, 4
+            $call case_aspect, 4, 6
+            $call case_aspect, 6, 12
+            $else
+                num_col = 12
+                num_row = 1
+
+            subcode: case_aspect(a,b)
+                $elif fabs(f_aspect - (float)$(a)*$(a)/12) < fabs(f_aspect - (float)$(b)*$(b)/12)
+                    num_col = $(a)
+                    num_row = 12/$(a)
+
+    subcode: draw_months
+        $call @draw_title, "Calendar for 2021"
+        $my x0, y0:int
+        k = 0
+        $for row=0:num_row
+            $call set_x, y0, row, month_height, margin_y, month_gap
+            $for col=0:num_col
+                $call set_x, x0, col, month_width, margin_x, month_gap
+                $call draw_month, s_months[k], x0, y0, wdays[k], days[k]
+                k++
+
+        subcode: draw_title(title)
+            SetTextAlign(hdc, TA_CENTER)
+            &call with_font, hfont_title, 0x101010, color_bg
+                TextOut(hdc, $(W)/2, margin_x, $(title), strlen($(title)))
+            margin_y+=cell_height*2.5
+
+        subcode: set_x(x, i, step, margin, gap)
+            $(x) = $(margin) + $(i) * ($(step) + $(gap))
+
+    subcode: draw_month(title, x0, y0, day, last_day)
+        SetTextAlign(hdc, TA_CENTER)
+        $call fill_month_backgroun
+
+        tn_day = $(day)
+        tn_y = $(y0)
+
+        $call draw_month_title
+        $call draw_week_row
+        $call draw_dates
+        $call draw_rect_boundary
+
+        subcode: fill_month_backgroun
+            $local rect_temp
+            $call set_rect, rect_temp, $(x0), $(y0), $(x0)+month_width, $(y0)+month_height
+            $call fill_rect, rect_temp, 0xf0f0f0
+
+        subcode: draw_rect_boundary
+            &call quick_pen, PS_SOLID, 1, 0xff0000
+                MoveToEx(hdc, $(x0), $(y0), NULL)
+                LineTo(hdc, $(x0)+month_width, $(y0))
+                LineTo(hdc, $(x0)+month_width, $(y0)+month_height)
+                LineTo(hdc, $(x0), $(y0)+month_height)
+                LineTo(hdc, $(x0), $(y0))
+
+        subcode: draw_month_title
+            n_title_height = cell_height * 1.2
+            $local rect_temp
+            $call set_rect, rect_temp, $(x0), tn_y, $(x0)+month_width, tn_y+n_title_height
+            $call fill_rect, rect_temp, 0xe0e0e0
+            n=strlen($(title))
+            &call with_font, hfont_month, 0xba6b55, 0xe0e0e0
+                TextOut(hdc, $(x0) + month_width/2, tn_y + n_title_height/10, $(title), strlen($(title)))
+            tn_y+=n_title_height
+
+        subcode: draw_week_row
+            $local rect_temp
+            $call set_rect, rect_temp, $(x0), tn_y, $(x0)+month_width, tn_y+cell_height
+            $call fill_rect, rect_temp, 0xc0c0c0
+
+            &call with_font, hfont_num, 0x101010, 0xc0c0c0
+                $local s_week[15]="SuMoTuWeThFrSa"
+                tn_x = $(x0) + cell_margin + cell_width / 2
+                $for i=0:7
+                    TextOut(hdc, tn_x, tn_y + cell_height/5 , s_week+i*2, 2)
+                    tn_x += cell_width
+                tn_y += cell_height*1.2
+
+        subcode: draw_dates
+            &call with_font, hfont_num, 0x101010, 0xf0f0f0
+                $for i=1 to $(last_day)
+                    tn_x = $(x0) + cell_margin + tn_day * cell_width + cell_width / 2
+                    $if tn_day==0
+                        SetTextColor(hdc, 0x1010f0)
+                    $elif tn_day==6
+                        SetTextColor(hdc, 0x5050b0)
+                    $else
+                        SetTextColor(hdc, 0x101010)
+
+                    $call draw_number, i
+                    tn_day++
+                    $if tn_day == 7
+                        tn_day = 0
+                        tn_y += 20
+
+            subcode: draw_number(n)
+                $local s_num[10]
+                sprintf(s_num, "%d", $(n))
+                TextOut(hdc, tn_x, tn_y + cell_height/5, s_num, strlen(s_num))
+
+#---------------------------------------- 
+subcode: init_time
+    $include time
+    $local now: time_t
+    $local tm: struct tm *
+    now = time(NULL)
+    tm = localtime(&now)
+    $(for:year,mon,mday,wday)
+        $global int g_$1
+        g_$1 = tm->tm_$1
+    g_year += 1900
+
+subcode: setup_year
+    $global const char *s_months[12]={"January", "Feburay", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+    $global int days[12]={31,28,31,30,31,30,31,31,30,31,30,31}
+    $global int wdays[12]
+    is_leap = (g_year % 400 == 0) || (g_year % 4 == 0 && g_year % 100)
+    $if is_leap
+        days[1]++
+    n = 6 # 2000/1/1 is Saturday
+    n += g_year % 400 # 400-year cycle, every year advance by 365%7 = 1
+    n += n / 4 - n / 100 # every leap year
+    $for i=0:12
+        wdays[i] = n % 7
+        n+=days[i]
+
+subcode: init_configs
+    $global g_main_x = 50
+    $global g_main_y = 50
+    $global g_main_w = 800
+    $global g_main_h = 1280
+
+#### RC file ########################################
+page: test
+    type: rc
+    module: win32rc
+    subcode: main
+        Icon test.ico

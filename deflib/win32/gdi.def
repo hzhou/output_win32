@@ -69,14 +69,7 @@ subcode: with_gdi(objs)
 
 #---------------------------------------- 
 # -- PEN ---------------------
-subcode: create_pen(var, @plist)
-    $(mset:ps=PS_SOLID,pw=0,color=0)
-    $(ifeach:p:3=PS_)
-        $(export:ps=$(p))
-    $(ifeach:p~[0-9]+)
-        $(export:pw=$(p))
-    $(ifeach:p:6=color_)
-        $(export:color=$(p))
+subcode: create_pen(var, ps, pw, color)
     t_pen=CreatePen($(ps), $(pw), $(color))
 
 subcode: quick_pen(@plist)
@@ -87,10 +80,7 @@ subcode: quick_pen(@plist)
     DeleteObject(t_pen)
 
 # -- Brush -------------------------
-subcode: create_brush(var, @plist)
-    $(set:color=0)
-    $(ifeach:p:6=color_ or p:2=0x)
-        $(export:color=$(p))
+subcode: create_brush(var, color)
     $(var)=CreateSolidBrush($(color))
 
 subcode: quick_brush(@plist)
@@ -111,3 +101,10 @@ subcode: quick_font(fontname, size)
         BLOCK
     DeleteObject(t_font)
 
+subcode: with_font(hfont, @color_fg, @color_bg)
+    &call quick_gdi, $(hfont)
+        $(if:color_fg)
+            SetTextColor(hdc, $(color_fg))
+        $(if:color_bg)
+            SetBkColor(hdc, $(color_bg))
+        BLOCK

@@ -1,0 +1,117 @@
+page: ascii, basic_frame
+    module: win32
+    use_bool: 1
+    CFLAGS: -Wl,--subsystem,windows
+
+    $call @init_configs
+    $(for:x,y,w,h)
+        $(set:cw_$1=g_main_$1)
+    $call win_main, test
+    $call @update_title
+    $call win_loop
+
+    subcode: update_title
+        $include stdio
+        $local s_title[100]
+        sprintf(s_title, "ASCII Table")
+        SetWindowTextA(hwnd_main, s_title)
+
+subcode: main_on_WM_SIZE
+    InvalidateRect(hwnd, NULL, TRUE)
+    return TRUE
+
+subcode: main_on_WM_PAINT
+    &call on_paint
+        draw_ascii_table(hwnd, hdc)
+    return TRUE
+
+#---------------------------------------- 
+fncode: draw_ascii_table(hwnd, hdc)
+    $call get_rect_client, hwnd
+    $(set:W=rect_client.right)
+    $(set:H=rect_client.bottom)
+    $call fill_rect, rect_client, 0xffffff
+
+    n_cols = 4
+    n_rows = 32
+    $call init_sizes
+    $call init_fonts
+    $local color_1=0xf0f0f0
+    $local color_2=0xe0e0e0
+
+    tn_x = n_margin
+    tn_y = 10
+    $call draw_title
+    $call draw_table
+    $for row=0:n_rows
+        $for col=0:n_cols
+            $my int c = col * n_rows + row
+            $my int color_bg = color_1
+            $if row % 2
+                color_bg = color_2
+            $call draw_cell
+
+    DUMP_STUB cleanup
+
+    subcode: init_sizes
+        n_cell_w = $(W) / (n_cols+1)
+        n_cell_h = n_cell_w / 4
+        $if n_cell_h < 20
+            n_cell_h = 20
+            n_cell_w *= 4
+
+        n_margin = ($(W) - n_cell_w * n_cols) / 2
+        $if n_margin < 10
+            n_margin = 10
+
+    subcode: init_fonts
+        $local hfont_title, hfont_char, hfont_hex
+        $call create_font, hfont_title, "Times New Roman", n_cell_h * 1.75
+        $call create_font, hfont_char, "Times New Roman", n_cell_h * 0.85
+        $call create_font, hfont_hex, "Times New Roman", n_cell_h * 0.4
+        $(block:cleanup)
+            DeleteObject(hfont_title)
+            DeleteObject(hfont_char)
+            DeleteObject(hfont_hex)
+
+    subcode: draw_title
+        SetTextAlign(hdc, TA_CENTER)
+        &call with_font, hfont_title
+            TextOut(hdc, $(W)/2, tn_y, "ASCII Table", 11)
+        tn_y += n_cell_h * 2
+
+    subcode: draw_table
+        &call quick_pen, PS_SOLID, 2, 0x505050
+            Rectangle(hdc, tn_x, tn_y, tn_x+n_cell_w*n_cols+1, tn_y+n_cell_h*n_rows+1)
+        $local rect_temp
+        $for i=0:n_rows
+            $call set_rect, rect_temp, tn_x, tn_y+n_cell_h*i, tn_x+n_cell_w*n_cols, tn_y+n_cell_h*(i+1)
+            $if i % 2 == 0
+                $call fill_rect, rect_temp, color_1
+            $else
+                $call fill_rect, rect_temp, color_2
+
+    subcode: draw_cell
+        $local char buf[5]
+        &call with_font, hfont_hex, 0xf03030, color_bg
+            $(set:x=tn_x+col*n_cell_w+n_cell_w*0.25)
+            $(set:y=tn_y+row*n_cell_h+2)
+            sprintf(buf, "0x%02x", c)
+            TextOut(hdc, $(x), $(y), buf, 4)
+        &call with_font, hfont_hex, 0xb0b0b0, color_bg
+            $(set:x=tn_x+col*n_cell_w+n_cell_w*0.25)
+            $(set:y=tn_y+row*n_cell_h+2+n_cell_h*0.5)
+            sprintf(buf, "%d", c)
+            TextOut(hdc, $(x), $(y), buf, strlen(buf))
+        $if c > 0x20 && c < 0x7f
+            &call with_font, hfont_char, 0x101010, color_bg
+                $(set:x=tn_x+col*n_cell_w+n_cell_w*0.75)
+                $(set:y=tn_y+row*n_cell_h+n_cell_h*0.10)
+                TextOut(hdc, $(x), $(y),(const char *)&c, 1)
+#---------------------------------------- 
+subcode: init_configs
+    $global g_main_x = 50
+    $global g_main_y = 10
+    $global g_main_w = 800
+    $global g_main_h = 1400
+
