@@ -16,13 +16,13 @@ page: test, basic_frame
     $call win_loop
 
 #-----------------------------------------
-#-- pay attention to the naming convention
+# pay attention to the naming convention
 subcode: main_on_WM_PAINT
     &call on_paint
-        $(set:bk_color=0xcfc6cb)
-        $call background, $(bk_color)
-        SetBkColor(hdc, $(bk_color))
-        &call with_gdi, FONT_A
+        $(set:bg_color=0xcfc6cb)
+        $(set:fg_color=0x101010)
+        $call background, $(bg_color)
+        &call with_font, FONT_A, $(fg_color), $(bg_color)
             $call get_rect_client, hwnd
             $call center_text, rect_client, "Hello World!"
 
