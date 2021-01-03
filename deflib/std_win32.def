@@ -4,13 +4,10 @@ include: win32/std.def
 include: win32/windows.def
 include: win32/gdi.def
 
-subcode: win32_autoload
 subcode: basic_frame
     $call @global
-    $list WinMain
-
-fncode: WinMain
-    $call main2
+    $function WinMain
+        $call main
 
 #---------------------------------------- 
 subcode: win_main(mainname)
@@ -18,7 +15,11 @@ subcode: win_main(mainname)
     &call register_wndclass, "$(mainname)", WndProc_main
         NOOP
     &call create_window, hwnd_main, "$(mainname)"
-        NOOP
+        $(set:cw_x=g_main_x)
+        $(set:cw_y=g_main_y)
+        $(set:cw_w=g_main_w)
+        $(set:cw_h=g_main_h)
+
     $call win_show, hwnd_main
 
 #---------------------------------------- 

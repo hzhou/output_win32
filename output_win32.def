@@ -18,7 +18,7 @@ subcode:: on_dumpout
     $if $winmain
         $$(super:has_main)=1
         $winmain->{skip_declare}=1;
-        $winmain->{ret_type}="int APIENTRY";
+        $winmain->{return_type}="int APIENTRY";
         $winmain->{param_list}=["HINSTANCE hInst", "HINSTANCE hPrev", "LPSTR s_cmdline", "int n_cmdshow"];
         push @{$winmain->{init}}, "cur_instance=hInst;";
         push @{$winmain->{init}}, "DUMP_STUB main_init";

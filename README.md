@@ -1,3 +1,7 @@
+
+* `tests/win32_test.def`:
+
+```
 # win32 is c, all c extension works here
 
 page: test, basic_frame
@@ -37,11 +41,6 @@ subcode: init_configs
     $global g_main_y = 50
     $global g_main_w = 600
     $global g_main_h = 400
+```
 
-#### RC file ########################################
-
-page: test
-    type: rc
-    module: win32rc
-    subcode: main
-        Icon test.ico
+On Linux (cross-compiling), it will need some setup. On Cygwin, it works by pressing `F5` (`mydef_run win32_test.def`) and a window should show up.

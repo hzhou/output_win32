@@ -29,8 +29,7 @@ subcode: register_wndclass(name, proc)
         wc.lpfnWndProc = DefDlgProc
         wc.cbWndExtra = DLGWINDOWEXTRA
     $(elif:proc:8=WndProc_)
-        $function $(proc)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-            $return_type LRESULT CALLBACK
+        $function $(proc)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam): LRESULT CALLBACK
             $wndproc $(proc)
 
         wc.lpfnWndProc = $(proc)
@@ -70,10 +69,12 @@ subcode: register_wndclass(name, proc)
 
 # ---- Create Window ----
 subcode: create_window(hwnd, name)
-    $(set:cw_x=CW_USEDEFAULT)
-    $(set:cw_y=CW_USEDEFAULT)
-    $(set:cw_w=CW_USEDEFAULT)
-    $(set:cw_h=CW_USEDEFAULT)
+    $(if:!cw_x)
+        $(set:cw_x=CW_USEDEFAULT)
+        $(set:cw_y=CW_USEDEFAULT)
+    $(if:!cw_w)
+        $(set:cw_w=CW_USEDEFAULT)
+        $(set:cw_h=CW_USEDEFAULT)
     BLOCK
     $(if:!cw_style_ex)
         $(set:cw_style_ex=0)
